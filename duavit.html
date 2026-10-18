@@ -1,0 +1,1354 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đua Vịt May Mắn - Dynamic Dramatic Camera (15s)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            background: linear-gradient(135deg, #a8edf8 0%, #fed6e3 100%);
+            touch-action: manipulation;
+        }
+
+        .btn-cartoon {
+            transition: all 0.12s ease;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.25);
+        }
+        .btn-cartoon:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 0 rgba(0,0,0,0.25);
+        }
+        .btn-cartoon:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.25);
+        }
+
+        .podium-step {
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0284c7;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col justify-between text-slate-800 select-none">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-amber-400 border-b-4 border-amber-600 px-4 py-2 flex items-center justify-between z-20 shadow-md">
+        <div class="flex items-center space-x-3">
+            <span class="text-3xl md:text-4xl animate-bounce">🦆</span>
+            <div>
+                <h1 class="text-xl md:text-2xl font-black text-amber-950 tracking-wide leading-none">ĐUA VỊT MAY MẮN</h1>
+                <p class="text-xs text-amber-900/80 font-bold hidden sm:block">Dynamic Camera Drama • Top 1-2-3 Presentation</p>
+            </div>
+        </div>
+
+        <!-- Timer & Round Badge -->
+        <div class="flex items-center space-x-3">
+            <!-- Timer Clock Display -->
+            <div class="bg-black/85 text-yellow-300 font-mono font-black px-4 py-1.5 rounded-2xl text-lg md:text-2xl border-2 border-amber-500 shadow-inner flex items-center gap-2">
+                <i class="fas fa-stopwatch text-amber-400 animate-pulse"></i>
+                <span id="raceTimer">00.0s</span>
+            </div>
+
+            <div id="roundBadge" class="bg-amber-950 text-amber-300 font-black px-3.5 py-1.5 rounded-2xl text-sm md:text-base border border-amber-600 shadow-inner">
+                VÒNG <span id="currentRoundText">1</span>
+            </div>
+
+            <!-- Sound Toggle -->
+            <button id="soundToggleBtn" onclick="toggleSound()" class="btn-cartoon bg-yellow-300 hover:bg-yellow-200 text-amber-950 border-2 border-amber-600 font-bold px-3 py-1.5 rounded-2xl text-xs flex items-center gap-1.5">
+                <i id="soundIcon" class="fas fa-volume-up text-sm"></i>
+                <span id="soundText" class="hidden sm:inline">Âm thanh</span>
+            </button>
+
+            <!-- Settings Drawer Button -->
+            <button onclick="toggleSidebar()" class="btn-cartoon bg-sky-500 hover:bg-sky-400 text-white border-2 border-sky-700 font-bold p-2 md:px-3.5 rounded-2xl text-xs flex items-center gap-1.5">
+                <i class="fas fa-sliders-h text-sm"></i>
+                <span class="hidden md:inline">Cài đặt</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <div class="flex-1 flex relative overflow-hidden">
+
+        <!-- Sidebar Drawer Controls -->
+        <aside id="sidebar" class="absolute lg:relative top-0 left-0 h-full w-full sm:w-96 bg-white/95 backdrop-blur-md z-30 border-r-4 border-sky-300 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col p-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-2 pb-2 border-b-2 border-slate-200">
+                <h2 class="text-lg font-extrabold text-sky-800 flex items-center gap-2">
+                    <i class="fas fa-trophy text-amber-500"></i> Quản Lý Vịt Đua (39 Vịt)
+                </h2>
+                <button onclick="toggleSidebar()" class="lg:hidden text-slate-400 hover:text-red-500 text-xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Winners Elimination Wall -->
+            <div class="mb-3 bg-amber-50 border-2 border-amber-200 rounded-2xl p-2.5">
+                <div class="flex justify-between items-center mb-1.5">
+                    <span class="text-xs font-black text-amber-900 uppercase flex items-center gap-1">
+                        🏆 Vịt về TOP 1 (Đã nghỉ đua):
+                    </span>
+                    <span id="winnerCountBadge" class="text-xs bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-full">0/39 con</span>
+                </div>
+                <div id="winnersHistoryList" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto p-1 bg-white/70 rounded-xl border border-amber-200/60 min-h-[40px] items-center">
+                    <span class="text-xs text-slate-400 italic px-2">Chưa có vịt nào chiến thắng Top 1...</span>
+                </div>
+            </div>
+
+            <!-- Quick Preset Button -->
+            <div class="mb-3">
+                <button onclick="load39Ducks()" class="btn-cartoon w-full bg-amber-500 hover:bg-amber-400 text-white font-black text-xs py-2.5 px-3 rounded-2xl border-b-4 border-amber-700 flex items-center justify-center gap-2">
+                    <i class="fas fa-bolt text-yellow-200 text-sm"></i> NẠP DANH SÁCH 39 VỊT
+                </button>
+            </div>
+
+            <!-- Input Box -->
+            <div class="flex-1 flex flex-col mb-3">
+                <div class="flex justify-between items-center mb-1">
+                    <label for="duckNamesInput" class="text-xs font-bold text-slate-600 uppercase">Danh sách tên vịt:</label>
+                    <span id="duckCountBadge" class="text-xs bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full">39/39 sẵn sàng</span>
+                </div>
+                <textarea id="duckNamesInput" oninput="updateDuckListFromInput()" class="flex-1 w-full p-2.5 border-2 border-sky-200 rounded-xl focus:border-sky-500 focus:outline-none resize-none font-bold text-slate-700 bg-sky-50/40 text-xs leading-relaxed" placeholder="Nhập tên từng chú vịt..."></textarea>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="resetEntireGame()" class="btn-cartoon bg-rose-500 hover:bg-rose-400 text-white font-extrabold py-2.5 rounded-xl border-b-4 border-rose-700 text-xs flex items-center justify-center gap-1">
+                    <i class="fas fa-trash-alt"></i> Reset Toàn Bộ
+                </button>
+                <button id="startBtn" onclick="startRace()" class="btn-cartoon bg-emerald-500 hover:bg-emerald-400 text-white font-black py-2.5 rounded-xl border-b-4 border-emerald-700 text-xs flex items-center justify-center gap-1">
+                    <i class="fas fa-play text-sm"></i> BẮT ĐẦU (15s)
+                </button>
+            </div>
+        </aside>
+
+        <!-- Canvas Racing Area -->
+        <main class="flex-1 h-full relative overflow-hidden bg-sky-300 flex flex-col">
+            <!-- Status Bar -->
+            <div class="bg-sky-900/40 backdrop-blur-md px-4 py-2 flex justify-between items-center text-white font-extrabold text-xs md:text-sm z-10 border-b border-white/10">
+                <div id="raceStatus" class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span>Sẵn sàng xuất phát ván 15 giây!</span>
+                </div>
+                <!-- Dynamic Drama Indicator Badge -->
+                <div id="dramaBadge" class="hidden bg-red-600 text-yellow-300 font-black px-3 py-0.5 rounded-full text-xs animate-pulse border border-yellow-300 flex items-center gap-1">
+                    <i class="fas fa-video"></i> CAMERA CẬN CẢNH VẠCH ĐÍCH!
+                </div>
+                <div id="leaderInfo" class="text-amber-300 font-black text-xs md:text-sm bg-black/40 px-3.5 py-1 rounded-full border border-amber-400/40 truncate max-w-[220px] sm:max-w-xs">
+                    🏆 Dẫn đầu: <span id="leaderName">Chưa xuất phát</span>
+                </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div id="canvasContainer" class="flex-1 relative w-full h-full overflow-hidden">
+                <canvas id="raceCanvas" class="w-full h-full block"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <!-- PRESENTATION-READY PODIUM MODAL (NO BOTTOM LIST, SUPER SIZE DUCK & NUMBERS) -->
+    <div id="winnerModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-gradient-to-b from-slate-900 to-sky-950 border-4 border-amber-400 rounded-3xl p-6 md:p-8 w-[95vw] max-w-6xl h-[90vh] max-h-[850px] cartoon-shadow transform scale-90 transition-transform duration-300 relative text-center flex flex-col justify-between overflow-hidden">
+            
+            <!-- Floating Crown Header -->
+            <div class="absolute -top-7 left-1/2 -translate-x-1/2 bg-amber-400 border-4 border-amber-200 text-4xl p-2.5 rounded-full shadow-2xl animate-bounce">
+                👑
+            </div>
+
+            <!-- Modal Title -->
+            <div class="mt-2">
+                <h2 class="text-3xl md:text-5xl font-black text-amber-400 tracking-wider drop-shadow-md">
+                    BẢNG VINH DANH VÒNG <span id="modalRoundNumber">1</span>
+                </h2>
+                <p id="modalSubTitle" class="text-sm md:text-lg text-amber-200 font-bold mt-1">
+                    🏆 Chúc mừng chú Vịt Quán Quân đã chiến thắng! (Đã tự động loại khỏi ván sau)
+                </p>
+            </div>
+
+            <!-- PODIUM STEP STRUCTURE (TOP 2 | TOP 1 | TOP 3) -->
+            <div id="podiumContainer" class="flex-1 grid grid-cols-3 gap-3 md:gap-6 items-end my-4 px-2 sm:px-6">
+                <!-- Dynamic Podium Injection -->
+            </div>
+
+            <!-- PRESENTATION ACTION BUTTONS -->
+            <div class="grid grid-cols-3 gap-3 md:gap-5 mt-2 max-w-3xl mx-auto w-full">
+                <button onclick="nextRound()" class="btn-cartoon bg-emerald-500 hover:bg-emerald-400 text-white font-black py-3.5 md:py-4 rounded-2xl border-b-4 border-emerald-700 text-sm md:text-lg flex items-center justify-center gap-2">
+                    <i class="fas fa-forward text-base md:text-xl"></i> Đua Vòng Tiếp
+                </button>
+                <button onclick="retryCurrentRound()" class="btn-cartoon bg-sky-500 hover:bg-sky-400 text-white font-black py-3.5 md:py-4 rounded-2xl border-b-4 border-sky-700 text-sm md:text-lg flex items-center justify-center gap-2">
+                    <i class="fas fa-sync-alt text-base md:text-xl"></i> Chơi Lại Vòng Này
+                </button>
+                <button onclick="resetEntireGame()" class="btn-cartoon bg-rose-500 hover:bg-rose-400 text-white font-black py-3.5 md:py-4 rounded-2xl border-b-4 border-rose-700 text-sm md:text-lg flex items-center justify-center gap-2">
+                    <i class="fas fa-redo text-base md:text-xl"></i> Reset Toàn Bộ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web Audio & Game Logic -->
+    <script>
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playQuack() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(360, now);
+                osc.frequency.exponentialRampToValueAtTime(180, now + 0.14);
+
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.14);
+            }
+
+            playWhistle() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.setValueAtTime(1800, now + 0.08);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+
+            playFanfare() {
+                if (!this.enabled) return;
+                this.init();
+
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const now = this.ctx.currentTime + idx * 0.1;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                });
+            }
+        }
+
+        const audio = new SoundFX();
+        let soundOn = true;
+
+        function toggleSound() {
+            soundOn = !soundOn;
+            audio.enabled = soundOn;
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+            if (soundOn) {
+                icon.className = 'fas fa-volume-up text-sm';
+                text.innerText = 'Âm thanh';
+                audio.playQuack();
+            } else {
+                icon.className = 'fas fa-volume-mute text-sm';
+                text.innerText = 'Tắt âm';
+            }
+        }
+
+        const DUCK_COLORS = [
+            '#FACC15', '#FB923C', '#F43F5E', '#38BDF8', '#4ADE80', 
+            '#A855F7', '#EC4899', '#14B8A6', '#F97316', '#6366F1',
+            '#EAB308', '#06B6D4', '#10B981', '#8B5CF6', '#D97706',
+            '#EF4444', '#3B82F6', '#84CC16', '#F472B6', '#2DD4BF'
+        ];
+        const DUCK_ACCESSORIES = ['scarf', 'bowtie', 'necktie', 'flower', 'star', 'glasses', 'earring', 'bow'];
+        const DUCK_SHIRT_PATTERNS = ['stripes', 'dots', 'diagonal', 'checkered', 'pocket', 'yoke', 'stars'];
+
+        const DEFAULT_DUCK_NAMES = [
+            'Nguyễn Hải Anh',
+            'Nguyễn Hoàng Quân',
+            'An Khang',
+            'Lê Bích Ngọc',
+            'Hồ Ngọc Bảo Thy',
+            'Nguyễn Phạm Minh Anh',
+            'Nguyễn Thanh Hiếu',
+            'Huỳnh Ngọc Thanh Vy',
+            'Bùi Nguyễn Phúc Ni',
+            'Lê Ngọc Tường Vy',
+            'Trần Thục Bảo Nghi',
+            'Nguyễn Ngọc Minh Châu',
+            'Ngô Tâm Như',
+            'Lê Ngọc Thuận',
+            'Bành Gia Mẫn',
+            'Nguyễn Ngọc Bảo Linh',
+            'Nguyễn Minh Thư',
+            'A Se Kinl',
+            'Đặng Thanh Xuân',
+            'Nguyễn Ngọc Phương Trang',
+            'Nguyễn Trần Diễm Chi',
+            'Nguyễn Minh Sương Mai',
+            'Bùi Hoàng Nhân',
+            'Phạm Hoàng Trúc Linh',
+            'Huỳnh Trần Tỷ Phú',
+            'Nguyễn Ngọc Thiên Ân',
+            'Nguyễn Khải Hoàn',
+            'Vũ Nguyễn Yến Nhi',
+            'Nguyễn Minh Triết',
+            'Hồ Ánh Ngọc',
+            'Trình Nhã Kỳ',
+            'Trần Ngọc Anh Thư',
+            'Vương Trần Thiên Ái',
+            'Nguyễn Ngọc Thảo Như',
+            'Vương Trần Thiên Ái',
+            'Bảo Thịnh',
+            'Tố Như',
+            'Anh Hoa',
+            'Thiên Ngọc'
+        ];
+
+        const canvas = document.getElementById('raceCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvasContainer');
+
+        let allDucks = []; 
+        let activeDucks = []; 
+        let eliminatedWinners = []; 
+        
+        let currentRound = 1;
+        let raceState = 'IDLE'; 
+        let raceStartTime = 0;
+        let finishedDucks = [];
+        let animFrameId = null;
+        let waveOffset = 0;
+
+        let trackTotalWidth = 2200; 
+        let cameraX = 0;
+        let cameraY = 0;
+        let cameraZoom = 1.0;
+        let targetCameraX = 0;
+        let targetCameraY = 0;
+        let targetCameraZoom = 1.0;
+        let focusDuck = null;
+        let focusSwitchTimer = 0;
+
+        class Duck {
+            constructor(number, name, color) {
+                this.number = number;
+                this.name = name;
+                this.color = color;
+                this.accessoryColor = DUCK_COLORS[(number + 7) % DUCK_COLORS.length];
+                this.accessoryType = DUCK_ACCESSORIES[(number - 1) % DUCK_ACCESSORIES.length];
+                this.shirtPattern = DUCK_SHIRT_PATTERNS[(number - 1) % DUCK_SHIRT_PATTERNS.length];
+                this.y = 0;
+                this.laneHeight = 0;
+                
+                this.x = 80;
+                this.speed = 0;
+                
+                this.baseSpeed = 2.85 + Math.random() * 0.85; 
+                this.boostTimer = 0;
+                this.boostFactor = 1.0;
+                this.isBoosting = false;
+                
+                this.finished = false;
+                this.finishTime = 0;
+                this.rank = 0;
+                this.isEliminated = false;
+
+                this.bobPhase = Math.random() * Math.PI * 2;
+                this.wingPhase = Math.random() * Math.PI * 2;
+                this.particles = [];
+            }
+
+            resetForRound() {
+                this.x = 80;
+                this.finished = false;
+                this.finishTime = 0;
+                this.rank = 0;
+                this.particles = [];
+                this.baseSpeed = 2.85 + Math.random() * 0.85; 
+                this.boostTimer = 0;
+                this.boostFactor = 1.0;
+                this.isBoosting = false;
+            }
+
+            drawStar(ctx, centerX, centerY, outerRadius, innerRadius) {
+                ctx.beginPath();
+                for (let pointIndex = 0; pointIndex < 10; pointIndex++) {
+                    const angle = -Math.PI / 2 + pointIndex * Math.PI / 5;
+                    const radius = pointIndex % 2 === 0 ? outerRadius : innerRadius;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    if (pointIndex === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            drawShirtPattern(ctx) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.ellipse(0, 3, 15, 11, 0, 0, Math.PI * 2);
+                ctx.clip();
+                ctx.fillStyle = this.accessoryColor;
+                ctx.strokeStyle = this.accessoryColor;
+                ctx.globalAlpha = 0.72;
+
+                switch (this.shirtPattern) {
+                    case 'stripes':
+                        for (let x = -16; x <= 16; x += 7) ctx.fillRect(x, -10, 3, 26);
+                        break;
+                    case 'dots':
+                        for (let x = -10; x <= 10; x += 10) {
+                            for (let y = -2; y <= 8; y += 10) {
+                                ctx.beginPath();
+                                ctx.arc(x, y, 2, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        }
+                        break;
+                    case 'diagonal':
+                        ctx.lineWidth = 3;
+                        for (let x = -20; x <= 16; x += 7) {
+                            ctx.beginPath();
+                            ctx.moveTo(x, -10);
+                            ctx.lineTo(x + 16, 16);
+                            ctx.stroke();
+                        }
+                        break;
+                    case 'checkered':
+                        for (let x = -16; x <= 12; x += 6) {
+                            for (let y = -9; y <= 9; y += 6) {
+                                if ((x + y) % 12 === 0) ctx.fillRect(x, y, 4, 4);
+                            }
+                        }
+                        break;
+                    case 'pocket':
+                        ctx.beginPath();
+                        ctx.moveTo(5, 1);
+                        ctx.lineTo(12, 1);
+                        ctx.lineTo(12, 6);
+                        ctx.lineTo(8.5, 8);
+                        ctx.lineTo(5, 6);
+                        ctx.closePath();
+                        ctx.stroke();
+                        break;
+                    case 'yoke':
+                        ctx.beginPath();
+                        ctx.moveTo(-16, -1);
+                        ctx.lineTo(-12, -7);
+                        ctx.lineTo(12, -7);
+                        ctx.lineTo(16, -1);
+                        ctx.lineTo(13, 2);
+                        ctx.lineTo(-13, 2);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                    case 'stars':
+                        this.drawStar(ctx, -9, 2, 3, 1.4);
+                        this.drawStar(ctx, 9, 2, 3, 1.4);
+                        this.drawStar(ctx, 0, 9, 2.5, 1.2);
+                        break;
+                }
+
+                ctx.restore();
+            }
+
+            drawAccessory(ctx) {
+                ctx.save();
+                ctx.fillStyle = this.accessoryColor;
+                ctx.strokeStyle = '#0f172a';
+                ctx.lineWidth = 1.2;
+
+                switch (this.accessoryType) {
+                    case 'scarf':
+                        ctx.beginPath();
+                        ctx.moveTo(2, -1);
+                        ctx.quadraticCurveTo(8, 4, 14, 0);
+                        ctx.lineTo(12, 4);
+                        ctx.lineTo(11, 10);
+                        ctx.lineTo(8, 7);
+                        ctx.lineTo(5, 9);
+                        ctx.lineTo(5, 3);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        break;
+                    case 'bowtie':
+                        ctx.beginPath();
+                        ctx.moveTo(5, 1);
+                        ctx.lineTo(9, 3);
+                        ctx.lineTo(5, 6);
+                        ctx.closePath();
+                        ctx.moveTo(13, 1);
+                        ctx.lineTo(9, 3);
+                        ctx.lineTo(13, 6);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(9, 3, 1.5, 0, Math.PI * 2);
+                        ctx.fillStyle = '#FDE68A';
+                        ctx.fill();
+                        break;
+                    case 'necktie':
+                        ctx.beginPath();
+                        ctx.moveTo(6, 0);
+                        ctx.lineTo(12, 0);
+                        ctx.lineTo(10, 4);
+                        ctx.lineTo(11, 10);
+                        ctx.lineTo(8, 12);
+                        ctx.lineTo(6, 4);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        break;
+                    case 'flower':
+                        for (let petalIndex = 0; petalIndex < 5; petalIndex++) {
+                            const angle = petalIndex * Math.PI * 2 / 5;
+                            ctx.beginPath();
+                            ctx.arc(8 + Math.cos(angle) * 3, 2 + Math.sin(angle) * 3, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        ctx.beginPath();
+                        ctx.arc(8, 2, 1.5, 0, Math.PI * 2);
+                        ctx.fillStyle = '#FDE68A';
+                        ctx.fill();
+                        break;
+                    case 'star':
+                        ctx.fillStyle = '#FDE68A';
+                        this.drawStar(ctx, 8, 2, 4, 2);
+                        ctx.stroke();
+                        break;
+                    case 'glasses':
+                        ctx.beginPath();
+                        ctx.ellipse(13, -11, 4, 3.2, 0, 0, Math.PI * 2);
+                        ctx.moveTo(9, -11);
+                        ctx.lineTo(6, -11);
+                        ctx.stroke();
+                        break;
+                    case 'earring':
+                        ctx.beginPath();
+                        ctx.arc(18, -1, 2.5, 0, Math.PI * 2);
+                        ctx.strokeStyle = '#FDE68A';
+                        ctx.lineWidth = 1.8;
+                        ctx.stroke();
+                        break;
+                    case 'bow':
+                        ctx.beginPath();
+                        ctx.moveTo(-19, -8);
+                        ctx.lineTo(-23, -12);
+                        ctx.lineTo(-23, -5);
+                        ctx.closePath();
+                        ctx.moveTo(-19, -8);
+                        ctx.lineTo(-15, -12);
+                        ctx.lineTo(-15, -5);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(-19, -8, 1.5, 0, Math.PI * 2);
+                        ctx.fillStyle = '#FDE68A';
+                        ctx.fill();
+                        break;
+                }
+
+                ctx.restore();
+            }
+
+            update(dt, trackLength, isSlowMo) {
+                if (this.finished || this.isEliminated) return;
+
+                this.boostTimer -= dt;
+                if (this.boostTimer <= 0) {
+                    this.boostTimer = 0.4 + Math.random() * 0.8;
+                    const rand = Math.random();
+                    
+                    if (rand > 0.6) {
+                        this.boostFactor = 1.5 + Math.random() * 0.5; 
+                        this.isBoosting = true;
+                        if (Math.random() > 0.75) audio.playQuack();
+                    } else if (rand < 0.2) {
+                        this.boostFactor = 0.8 + Math.random() * 0.2; 
+                        this.isBoosting = false;
+                    } else {
+                        this.boostFactor = 1.0;
+                        this.isBoosting = false;
+                    }
+                }
+
+                this.speed = this.baseSpeed * this.boostFactor;
+                const hasWinnerFinished = finishedDucks.length > 0;
+                const speedMultiplier = hasWinnerFinished ? 1.1 : (isSlowMo ? 0.35 : 1.0);
+                this.x += this.speed * (dt * 60) * speedMultiplier;
+
+                this.bobPhase += 0.15;
+                this.wingPhase += 0.3;
+
+                if (Math.random() > 0.3) {
+                    this.particles.push({
+                        x: this.x - 16,
+                        y: this.y + 6 + (Math.random() * 4 - 2),
+                        radius: 2 + Math.random() * 3,
+                        alpha: 0.8,
+                        speedX: -1.2 - Math.random() * 0.8
+                    });
+                }
+
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.speedX;
+                    p.alpha -= 0.05;
+                    if (p.alpha <= 0) this.particles.splice(i, 1);
+                }
+
+                const finishX = trackLength - 100;
+                if (this.x >= finishX && !this.finished) {
+                    this.finished = true;
+                    this.x = finishX;
+                    this.finishTime = ((performance.now() - raceStartTime) / 1000).toFixed(2);
+                    finishedDucks.push(this);
+                    this.rank = finishedDucks.length;
+
+                    if (this.rank === 1) {
+                        audio.playFanfare();
+                        confetti({ particleCount: 200, spread: 120, origin: { y: 0.5 } });
+                    }
+                }
+            }
+
+            draw(ctx) {
+                this.particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+                    ctx.fill();
+                });
+
+                ctx.save();
+                ctx.translate(this.x, this.y + Math.sin(this.bobPhase) * 2.5);
+
+                // Boost aura aura effect
+                if (this.isBoosting && !this.finished) {
+                    ctx.beginPath();
+                    ctx.ellipse(0, 3, 22, 16, 0, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(250, 204, 21, 0.4)';
+                    ctx.fill();
+                }
+
+                // Tail
+                ctx.beginPath();
+                ctx.fillStyle = this.color;
+                ctx.moveTo(-16, -2);
+                ctx.lineTo(-24, -9);
+                ctx.lineTo(-12, 4);
+                ctx.fill();
+
+                // Main Body
+                ctx.beginPath();
+                ctx.ellipse(0, 3, 16, 12, 0, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = '#00000033';
+                ctx.stroke();
+
+                this.drawShirtPattern(ctx);
+
+                // Shirt Number Badge
+                ctx.beginPath();
+                ctx.arc(-1, 4, 7.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fill();
+                ctx.strokeStyle = '#00000022';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 9px Fredoka, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.number, -1, 4.5);
+
+                // Wing
+                ctx.beginPath();
+                const wingY = Math.sin(this.wingPhase) * 2;
+                ctx.ellipse(-1, 5 + wingY, 8, 5, 0.2, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.08)';
+                ctx.fill();
+
+                // Head
+                ctx.beginPath();
+                ctx.arc(11, -9, 9.5, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.stroke();
+
+                // Beak
+                ctx.beginPath();
+                ctx.ellipse(19, -7, 6, 3.5, 0, 0, Math.PI * 2);
+                ctx.fillStyle = '#FB923C';
+                ctx.fill();
+                ctx.strokeStyle = '#C2410C';
+                ctx.lineWidth = 0.8;
+                ctx.stroke();
+
+                // Eye
+                ctx.beginPath();
+                ctx.arc(13, -11, 2.2, 0, Math.PI * 2);
+                ctx.fillStyle = '#000';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(14, -12, 0.7, 0, Math.PI * 2);
+                ctx.fillStyle = '#FFF';
+                ctx.fill();
+
+                this.drawAccessory(ctx);
+
+                ctx.restore();
+
+                // Name Badge
+                ctx.save();
+                ctx.translate(this.x, this.y - 18);
+
+                ctx.font = 'bold 10px Fredoka, sans-serif';
+                const textWidth = ctx.measureText(this.name).width;
+                const padX = 6;
+                
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+                ctx.shadowBlur = 3;
+                ctx.beginPath();
+                ctx.roundRect(-textWidth / 2 - padX / 2, -10, textWidth + padX, 15, 6);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#0f172a';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'alphabetic';
+                ctx.fillText(this.name, 0, 1);
+
+                if (this.finished) {
+                    ctx.beginPath();
+                    ctx.arc(textWidth / 2 + padX, -2, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = this.rank === 1 ? '#FBBF24' : (this.rank === 2 ? '#94A3B8' : (this.rank === 3 ? '#D97706' : '#38BDF8'));
+                    ctx.fill();
+                    ctx.fillStyle = '#FFF';
+                    ctx.font = 'bold 8px sans-serif';
+                    ctx.fillText(`#${this.rank}`, textWidth / 2 + padX, 1);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        function generateGiantDuckSVG(color, number, isGold = false) {
+            const accentColor = DUCK_COLORS[(number + 7) % DUCK_COLORS.length];
+            const shirtPatternMarkup = [
+                `<path d="M25 50v55 M40 45v60 M70 45v60 M85 50v55" stroke="${accentColor}" stroke-width="6"/>`,
+                `<g fill="${accentColor}"><circle cx="34" cy="64" r="4"/><circle cx="76" cy="64" r="4"/><circle cx="35" cy="84" r="4"/><circle cx="75" cy="84" r="4"/></g>`,
+                `<path d="M20 84l40-40 M35 100l48-55 M55 105l40-48" stroke="${accentColor}" stroke-width="6"/>`,
+                `<g fill="${accentColor}"><path d="M30 55h9v9h-9z M48 73h9v9h-9z M68 55h9v9h-9z M84 78h9v9h-9z"/></g>`,
+                `<path d="M72 65h14v14l-7 5-7-5z" fill="none" stroke="${accentColor}" stroke-width="4"/>`,
+                `<path d="M20 65q35-20 70 0v8q-35-16-70 0z" fill="${accentColor}"/>`,
+                `<g fill="${accentColor}"><path d="M35 61l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1z M78 80l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1z"/></g>`
+            ][(number - 1) % DUCK_SHIRT_PATTERNS.length];
+            const accessoryMarkup = [
+                `<path d="M70 57q10 8 20 0l-4 9-5-4-5 8-3-7z" fill="${accentColor}" stroke="#0f172a" stroke-width="2"/>`,
+                `<path d="M72 58l10 5-10 5-7-5z M92 58l-10 5 10 5 7-5z" fill="${accentColor}" stroke="#0f172a" stroke-width="2"/><circle cx="82" cy="63" r="3" fill="#FDE68A"/>`,
+                `<path d="M76 57h12l-4 7 3 13-6 5-5-14z" fill="${accentColor}" stroke="#0f172a" stroke-width="2"/>`,
+                `<g fill="${accentColor}" stroke="#0f172a" stroke-width="1.5"><circle cx="77" cy="67" r="4"/><circle cx="84" cy="67" r="4"/><circle cx="80" cy="61" r="4"/><circle cx="80" cy="73" r="4"/></g><circle cx="80" cy="67" r="3" fill="#FDE68A"/>`,
+                `<path d="M80 60l2 5 5 1-4 3 1 5-4-3-4 3 1-5-4-3 5-1z" fill="#FDE68A" stroke="#0f172a" stroke-width="1.5"/>`,
+                `<ellipse cx="88" cy="38" rx="7" ry="5" fill="rgba(255,255,255,0.35)" stroke="${accentColor}" stroke-width="3"/><path d="M81 38h-5" stroke="${accentColor}" stroke-width="3"/>`,
+                `<circle cx="98" cy="51" r="4" fill="none" stroke="#FDE68A" stroke-width="3"/>`,
+                `<path d="M24 50l-9-8 1 13z M24 50l9-8-1 13z" fill="${accentColor}" stroke="#0f172a" stroke-width="2"/><circle cx="24" cy="50" r="3" fill="#FDE68A"/>`
+            ][(number - 1) % DUCK_ACCESSORIES.length];
+
+            return `
+                <svg viewBox="0 0 120 120" class="w-full h-full drop-shadow-2xl">
+                    <ellipse cx="60" cy="100" rx="45" ry="10" fill="rgba(56, 189, 248, 0.4)" />
+                    <path d="M 25 65 L 10 50 L 32 75 Z" fill="${color}" stroke="#000" stroke-width="3"/>
+                    <ellipse cx="55" cy="72" rx="38" ry="28" fill="${color}" stroke="#000" stroke-width="3"/>
+                    <ellipse cx="50" cy="78" rx="20" ry="12" fill="rgba(0,0,0,0.12)" stroke="#000" stroke-width="2"/>
+                    <defs><clipPath id="podiumDuckBody${number}"><ellipse cx="55" cy="72" rx="37" ry="27"/></clipPath></defs>
+                    <g clip-path="url(#podiumDuckBody${number})" opacity="0.72">${shirtPatternMarkup}</g>
+                    <circle cx="55" cy="72" r="18" fill="#FFFFFF" stroke="#000000" stroke-width="3"/>
+                    <text x="55" y="77" font-size="${number > 99 ? '16' : '22'}" font-weight="900" font-family="Fredoka, sans-serif" text-anchor="middle" fill="#0f172a">${number}</text>
+                    <circle cx="82" cy="42" r="22" fill="${color}" stroke="#000" stroke-width="3"/>
+                    <ellipse cx="102" cy="46" rx="15" ry="9" fill="#FB923C" stroke="#C2410C" stroke-width="3"/>
+                    <circle cx="88" cy="38" r="5" fill="#000"/>
+                    <circle cx="90" cy="36" r="2" fill="#FFF"/>
+                    ${accessoryMarkup}
+                    ${isGold ? '<text x="82" y="14" font-size="22" text-anchor="middle">👑</text>' : ''}
+                </svg>
+            `;
+        }
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            trackTotalWidth = Math.max(2200, canvas.width * 2.2);
+            recalculateLanes();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function recalculateLanes() {
+            if (activeDucks.length === 0) return;
+
+            const topPadding = 40;
+            const bottomPadding = 30;
+            const availableHeight = canvas.height - topPadding - bottomPadding;
+            
+            const laneHeight = availableHeight / activeDucks.length;
+            const startY = topPadding + laneHeight / 2;
+
+            activeDucks.forEach((duck, idx) => {
+                duck.laneHeight = laneHeight;
+                duck.y = startY + idx * laneHeight;
+            });
+        }
+
+        function load39Ducks() {
+            const input = document.getElementById('duckNamesInput');
+            input.value = DEFAULT_DUCK_NAMES.join('\n');
+            updateDuckListFromInput();
+        }
+
+        function updateDuckListFromInput() {
+            const input = document.getElementById('duckNamesInput');
+            let lines = input.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            
+            if (lines.length > 39) lines = lines.slice(0, 39);
+
+            if (raceState === 'IDLE') {
+                allDucks = lines.map((name, idx) => {
+                    const number = idx + 1;
+                    const color = DUCK_COLORS[idx % DUCK_COLORS.length];
+                    return new Duck(number, name, color);
+                });
+
+                allDucks.forEach(duck => {
+                    const found = eliminatedWinners.find(w => w.number === duck.number);
+                    if (found) duck.isEliminated = true;
+                });
+
+                filterActiveDucks();
+                drawScene();
+            }
+        }
+
+        function filterActiveDucks() {
+            activeDucks = allDucks.filter(duck => !duck.isEliminated);
+            document.getElementById('duckCountBadge').innerText = `${activeDucks.length}/${allDucks.length} sẵn sàng`;
+            recalculateLanes();
+            updateWinnersHistoryUI();
+        }
+
+        function updateWinnersHistoryUI() {
+            const listEl = document.getElementById('winnersHistoryList');
+            const badgeEl = document.getElementById('winnerCountBadge');
+
+            badgeEl.innerText = `${eliminatedWinners.length}/${allDucks.length} con`;
+
+            if (eliminatedWinners.length === 0) {
+                listEl.innerHTML = `<span class="text-xs text-slate-400 italic px-2">Chưa có vịt nào chiến thắng Top 1...</span>`;
+                return;
+            }
+
+            listEl.innerHTML = eliminatedWinners.map(w => `
+                <span class="inline-flex items-center gap-1 bg-amber-200 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded-lg text-xs">
+                    🏆 R${w.roundWon}: ${w.name}
+                </span>
+            `).join('');
+        }
+
+        let lastTime = performance.now();
+
+        function gameLoop(now) {
+            const dt = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            update(dt);
+            drawScene();
+
+            if (raceState === 'RACING' || raceState === 'FINISHED') {
+                animFrameId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function update(dt) {
+            waveOffset += 2;
+
+            if (raceState === 'RACING') {
+                const elapsedSeconds = ((performance.now() - raceStartTime) / 1000).toFixed(1);
+                document.getElementById('raceTimer').innerText = `${elapsedSeconds}s`;
+
+                let allFinished = true;
+                let maxLeaderX = -1;
+                let currentLeader = null;
+                let remainingLeader = null;
+
+                // Find Leader & Boosting Candidates
+                const leadingGroup = [];
+
+                activeDucks.forEach(duck => {
+                    if (!duck.finished) allFinished = false;
+
+                    if (duck.x > maxLeaderX) {
+                        maxLeaderX = duck.x;
+                        currentLeader = duck;
+                    }
+
+                    if (!duck.finished && (!remainingLeader || duck.x > remainingLeader.x)) {
+                        remainingLeader = duck;
+                    }
+                });
+
+                // Filter top 3 closest to finish
+                const finishX = trackTotalWidth - 100;
+                const progressRatio = maxLeaderX / finishX;
+
+                // DYNAMIC DRAMA CAMERA LOGIC (FINAL 25% STRETCH)
+                const isFinalStretch = progressRatio > 0.72;
+                const isSlowMoFinish = maxLeaderX > (finishX - 120);
+
+                const dramaBadge = document.getElementById('dramaBadge');
+                if (isFinalStretch) {
+                    dramaBadge.classList.remove('hidden');
+                } else {
+                    dramaBadge.classList.add('hidden');
+                }
+
+                // Update duck positions
+                activeDucks.forEach(duck => {
+                    duck.update(dt, trackTotalWidth, isSlowMoFinish);
+                    if (duck.x > (maxLeaderX - 200) && !duck.finished) {
+                        leadingGroup.push(duck);
+                    }
+                });
+
+                if (currentLeader) {
+                    document.getElementById('leaderName').innerText = `${currentLeader.name} (Số ${currentLeader.number})`;
+                }
+
+                // Camera Switching in final stretch
+                focusSwitchTimer -= dt;
+                if (isFinalStretch) {
+                    targetCameraZoom = isSlowMoFinish ? 2.2 : 1.85;
+
+                    if (focusSwitchTimer <= 0 || !focusDuck || focusDuck.finished) {
+                        focusSwitchTimer = 0.9 + Math.random() * 0.6;
+                        
+                        // Switch between boosting ducks in top group
+                        const boostingDucks = leadingGroup.filter(d => d.isBoosting);
+                        if (boostingDucks.length > 0 && Math.random() > 0.4) {
+                            focusDuck = boostingDucks[Math.floor(Math.random() * boostingDucks.length)];
+                        } else {
+                            focusDuck = remainingLeader || currentLeader;
+                        }
+                    }
+                } else {
+                    targetCameraZoom = 1.0;
+                    focusDuck = currentLeader;
+                }
+
+                if (focusDuck) {
+                    const focusX = focusDuck.x;
+                    const focusY = focusDuck.y;
+
+                    targetCameraX = focusX - (canvas.width / targetCameraZoom) * 0.5;
+                    targetCameraY = focusY - (canvas.height / targetCameraZoom) * 0.5;
+
+                    targetCameraX = Math.max(0, Math.min(targetCameraX, trackTotalWidth - canvas.width / targetCameraZoom));
+                    targetCameraY = Math.max(0, Math.min(targetCameraY, canvas.height - canvas.height / targetCameraZoom));
+                }
+
+                // Smooth Camera Interpolation
+                const cameraSmoothing = 1 - Math.exp(-8 * dt);
+                const zoomSmoothing = 1 - Math.exp(-6 * dt);
+                cameraX += (targetCameraX - cameraX) * cameraSmoothing;
+                cameraY += (targetCameraY - cameraY) * cameraSmoothing;
+                cameraZoom += (targetCameraZoom - cameraZoom) * zoomSmoothing;
+
+                if (allFinished && raceState !== 'FINISHED') {
+                    raceState = 'FINISHED';
+                    document.getElementById('raceStatus').innerHTML = `
+                        <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                        <span>Cán đích thành công! (${elapsedSeconds}s)</span>
+                    `;
+                    document.getElementById('dramaBadge').classList.add('hidden');
+
+                    if (finishedDucks.length > 0) {
+                        const winner = finishedDucks[0];
+                        winner.isEliminated = true;
+                        winner.roundWon = currentRound;
+                        eliminatedWinners.push(winner);
+                    }
+
+                    setTimeout(showLeaderboardModal, 600);
+                }
+            }
+        }
+
+        function drawScene() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            
+            // Apply Dynamic Zoom & Pan Transform
+            ctx.scale(cameraZoom, cameraZoom);
+            ctx.translate(-cameraX, -cameraY);
+
+            // Water Background
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(0, 0, trackTotalWidth, canvas.height);
+
+            // Water Waves
+            ctx.fillStyle = '#38bdf8';
+            ctx.globalAlpha = 0.25;
+            for (let y = 0; y < canvas.height; y += 22) {
+                ctx.beginPath();
+                for (let x = -40; x < trackTotalWidth + 40; x += 45) {
+                    ctx.arc(x + ((y + waveOffset) % 45), y, 9, 0, Math.PI);
+                }
+                ctx.fill();
+            }
+            ctx.globalAlpha = 1.0;
+
+            // Start Line
+            const startX = 80;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([8, 8]);
+            ctx.beginPath();
+            ctx.moveTo(startX, 15);
+            ctx.lineTo(startX, canvas.height - 15);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#FFF';
+            ctx.font = 'bold 12px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('XUẤT PHÁT', startX, 18);
+
+            // Finish Line
+            const finishX = trackTotalWidth - 100;
+            const tileSize = 14;
+            const rows = Math.floor((canvas.height - 30) / tileSize);
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < 2; c++) {
+                    ctx.fillStyle = (r + c) % 2 === 0 ? '#000000' : '#FFFFFF';
+                    ctx.fillRect(finishX + c * tileSize, 15 + r * tileSize, tileSize, tileSize);
+                }
+            }
+
+            ctx.fillStyle = '#FEF08A';
+            ctx.font = 'bold 14px Fredoka, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('ĐÍCH VẠCH', finishX + tileSize, 14);
+
+            // Lanes
+            if (activeDucks.length > 0) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+                ctx.lineWidth = 1;
+                activeDucks.forEach((duck) => {
+                    ctx.beginPath();
+                    ctx.moveTo(0, duck.y + duck.laneHeight / 2);
+                    ctx.lineTo(trackTotalWidth, duck.y + duck.laneHeight / 2);
+                    ctx.stroke();
+                });
+            }
+
+            // Draw Ducks
+            activeDucks.forEach(duck => duck.draw(ctx));
+
+            ctx.restore();
+        }
+
+        function startRace() {
+            if (activeDucks.length < 1) {
+                alert('Tất cả vịt đều đã chiến thắng! Vui lòng nhấn "Reset Toàn Bộ" để chơi lại.');
+                return;
+            }
+
+            if (raceState === 'RACING') return;
+
+            closeSidebar();
+
+            raceState = 'RACING';
+            finishedDucks = [];
+            raceStartTime = performance.now();
+            document.getElementById('raceTimer').innerText = '00.0s';
+
+            activeDucks.forEach(duck => duck.resetForRound());
+
+            audio.playWhistle();
+
+            document.getElementById('raceStatus').innerHTML = `
+                <span class="w-3 h-3 rounded-full bg-amber-400 animate-ping"></span>
+                <span>Cuộc đua 15s đang diễn ra!</span>
+            `;
+
+            lastTime = performance.now();
+            cancelAnimationFrame(animFrameId);
+            animFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function retryCurrentRound() {
+            closeModal();
+            if (eliminatedWinners.length > 0 && eliminatedWinners[eliminatedWinners.length - 1].roundWon === currentRound) {
+                const popped = eliminatedWinners.pop();
+                popped.isEliminated = false;
+            }
+
+            filterActiveDucks();
+
+            raceState = 'IDLE';
+            finishedDucks = [];
+            cameraX = 0;
+            cameraY = 0;
+            cameraZoom = 1.0;
+            document.getElementById('raceTimer').innerText = '00.0s';
+            cancelAnimationFrame(animFrameId);
+
+            activeDucks.forEach(duck => duck.resetForRound());
+
+            document.getElementById('raceStatus').innerHTML = `
+                <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Sẵn sàng đua lại Vòng ${currentRound}!</span>
+            `;
+
+            drawScene();
+            startRace();
+        }
+
+        function nextRound() {
+            closeModal();
+            currentRound++;
+            document.getElementById('currentRoundText').innerText = currentRound;
+
+            filterActiveDucks();
+
+            raceState = 'IDLE';
+            finishedDucks = [];
+            cameraX = 0;
+            cameraY = 0;
+            cameraZoom = 1.0;
+            document.getElementById('raceTimer').innerText = '00.0s';
+            cancelAnimationFrame(animFrameId);
+
+            activeDucks.forEach(duck => duck.resetForRound());
+
+            document.getElementById('raceStatus').innerHTML = `
+                <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Sẵn sàng Vòng ${currentRound} (${activeDucks.length} vịt)!</span>
+            `;
+
+            document.getElementById('leaderName').innerText = 'Chưa xuất phát';
+
+            drawScene();
+        }
+
+        function resetEntireGame() {
+            closeModal();
+            currentRound = 1;
+            document.getElementById('currentRoundText').innerText = '1';
+
+            eliminatedWinners = [];
+            allDucks.forEach(duck => {
+                duck.isEliminated = false;
+                duck.resetForRound();
+            });
+
+            filterActiveDucks();
+
+            raceState = 'IDLE';
+            finishedDucks = [];
+            cameraX = 0;
+            cameraY = 0;
+            cameraZoom = 1.0;
+            document.getElementById('raceTimer').innerText = '00.0s';
+            cancelAnimationFrame(animFrameId);
+
+            document.getElementById('raceStatus').innerHTML = `
+                <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Đã Reset! Sẵn sàng với 39 vịt.</span>
+            `;
+
+            document.getElementById('leaderName').innerText = 'Chưa xuất phát';
+
+            drawScene();
+        }
+
+        function showLeaderboardModal() {
+            document.getElementById('modalRoundNumber').innerText = currentRound;
+            
+            const podiumContainer = document.getElementById('podiumContainer');
+            podiumContainer.innerHTML = '';
+
+            const top1 = finishedDucks[0];
+            const top2 = finishedDucks[1];
+            const top3 = finishedDucks[2];
+
+            podiumContainer.innerHTML = `
+                <!-- TOP 2 (Á QUÂN - SILVER) -->
+                <div class="flex flex-col items-center order-1 h-full justify-end podium-step">
+                    ${top2 ? `
+                        <div class="bg-gradient-to-b from-slate-800 to-slate-900 border-4 border-slate-300 rounded-3xl p-3 md:p-5 w-full text-center shadow-2xl relative flex flex-col items-center">
+                            <span class="absolute -top-4 left-1/2 -translate-x-1/2 bg-slate-300 text-slate-950 font-black text-xs md:text-sm px-3 md:px-4 py-1 rounded-full shadow-lg border border-white">
+                                🥈 Á QUÂN (TOP 2)
+                            </span>
+                            <div class="w-20 h-20 md:w-28 md:h-28 mt-2 my-1">
+                                ${generateGiantDuckSVG(top2.color, top2.number)}
+                            </div>
+                            <div class="w-full min-w-0 px-1 font-black text-2xl md:text-4xl text-slate-100 tracking-wide mt-1 leading-tight break-words">
+                                ${top2.name}
+                            </div>
+                            <div class="text-base md:text-xl font-mono font-black text-slate-300 mt-1">
+                                ⏱️ ${top2.finishTime}s
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-t from-slate-500 to-slate-400 text-slate-950 font-black text-xl md:text-3xl py-3 rounded-b-2xl w-full mt-2 shadow-xl border-t-2 border-slate-200">
+                            2ND
+                        </div>
+                    ` : '<div class="text-slate-500 italic text-sm">Không có dữ liệu</div>'}
+                </div>
+
+                <!-- TOP 1 (QUÁN QUÂN - GOLD SIÊU KHỔNG LỒ FOR PRESENTATION) -->
+                <div class="flex flex-col items-center order-2 h-full justify-end podium-step scale-105 z-10">
+                    ${top1 ? `
+                        <div class="bg-gradient-to-b from-amber-400 via-amber-500 to-yellow-600 border-4 border-yellow-200 rounded-3xl p-4 md:p-6 w-full text-center shadow-2xl relative flex flex-col items-center ring-4 ring-amber-400/50">
+                            <span class="absolute -top-5 left-1/2 -translate-x-1/2 bg-yellow-300 text-amber-950 font-black text-sm md:text-lg px-4 md:px-6 py-1.5 rounded-full shadow-2xl border-2 border-amber-950 animate-bounce">
+                                🥇 QUÁN QUÂN (TOP 1)
+                            </span>
+                            
+                            <div class="w-32 h-32 md:w-44 md:h-44 mt-3 my-1 transform hover:scale-110 transition-transform">
+                                ${generateGiantDuckSVG(top1.color, top1.number, true)}
+                            </div>
+
+                            <div class="bg-amber-950 text-yellow-300 font-black px-4 md:px-6 py-1 rounded-2xl text-lg md:text-2xl border-2 border-yellow-300 my-1 shadow-inner">
+                                SỐ ÁO: <span class="text-2xl md:text-4xl text-white font-mono">${top1.number}</span>
+                            </div>
+
+                            <div class="w-full min-w-0 px-1 font-black text-3xl md:text-5xl text-amber-950 tracking-wider my-1 leading-tight break-words drop-shadow-md">
+                                ${top1.name}
+                            </div>
+
+                            <div class="text-lg md:text-2xl font-mono font-black text-amber-950">
+                                ⏱️ ${top1.finishTime}s
+                            </div>
+
+                            <span class="mt-2 bg-amber-950 text-amber-300 font-black text-xs md:text-sm px-3 py-1 rounded-full border border-yellow-300">
+                                🏆 Đã ghi danh & Nghỉ ván sau
+                            </span>
+                        </div>
+                        <div class="bg-gradient-to-t from-yellow-600 to-amber-400 text-amber-950 font-black text-2xl md:text-4xl py-4 rounded-b-2xl w-full mt-2 shadow-2xl border-t-4 border-yellow-200">
+                            1ST
+                        </div>
+                    ` : '<div class="text-slate-500 italic text-sm">Không có dữ liệu</div>'}
+                </div>
+
+                <!-- TOP 3 (HẠNG 3 - BRONZE) -->
+                <div class="flex flex-col items-center order-3 h-full justify-end podium-step">
+                    ${top3 ? `
+                        <div class="bg-gradient-to-b from-amber-900 to-amber-950 border-4 border-amber-600 rounded-3xl p-3 md:p-5 w-full text-center shadow-2xl relative flex flex-col items-center">
+                            <span class="absolute -top-4 left-1/2 -translate-x-1/2 bg-amber-600 text-white font-black text-xs md:text-sm px-3 md:px-4 py-1 rounded-full shadow-lg border border-amber-300">
+                                🥉 HẠNG 3 (TOP 3)
+                            </span>
+                            <div class="w-20 h-20 md:w-28 md:h-28 mt-2 my-1">
+                                ${generateGiantDuckSVG(top3.color, top3.number)}
+                            </div>
+                            <div class="w-full min-w-0 px-1 font-black text-2xl md:text-4xl text-amber-100 tracking-wide mt-1 leading-tight break-words">
+                                ${top3.name}
+                            </div>
+                            <div class="text-base md:text-xl font-mono font-black text-amber-300 mt-1">
+                                ⏱️ ${top3.finishTime}s
+                            </div>
+                        </div>
+                        <div class="bg-gradient-to-t from-amber-800 to-amber-600 text-white font-black text-xl md:text-3xl py-3 rounded-b-2xl w-full mt-2 shadow-xl border-t-2 border-amber-400">
+                            3RD
+                        </div>
+                    ` : '<div class="text-slate-500 italic text-sm">Không có dữ liệu</div>'}
+                </div>
+            `;
+
+            const modal = document.getElementById('winnerModal');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-90');
+            modal.children[0].classList.add('scale-100');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('winnerModal');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+            modal.children[0].classList.remove('scale-100');
+            modal.children[0].classList.add('scale-90');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.add('-translate-x-full');
+        }
+
+        window.onload = () => {
+            resizeCanvas();
+            load39Ducks();
+            drawScene();
+        };
+    </script>
+</body>
+</html>
