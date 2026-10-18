@@ -336,7 +336,7 @@
             'Bùi Hoàng Nhân',
             'Phạm Hoàng Trúc Linh',
             'Huỳnh Trần Tỷ Phú',
-            'Nguyễn Ngọc Thiên Ân',
+            'Hoàng Phúc',
             'Nguyễn Khải Hoàn',
             'Vũ Nguyễn Yến Nhi',
             'Nguyễn Minh Triết',
@@ -397,6 +397,8 @@
                 this.isBoosting = false;
                 
                 this.finished = false;
+                this.disappeared = false;
+                this.opacity = 1.0;
                 this.finishTime = 0;
                 this.rank = 0;
                 this.isEliminated = false;
@@ -409,6 +411,8 @@
             resetForRound() {
                 this.x = 80;
                 this.finished = false;
+                this.disappeared = false;
+                this.opacity = 1.0;
                 this.finishTime = 0;
                 this.rank = 0;
                 this.particles = [];
@@ -604,7 +608,7 @@
             }
 
             update(dt, trackLength, isSlowMo) {
-                if (this.finished || this.isEliminated) return;
+                if (this.disappeared || this.isEliminated) return;
 
                 this.boostTimer -= dt;
                 if (this.boostTimer <= 0) {
@@ -632,7 +636,7 @@
                 this.bobPhase += 0.15;
                 this.wingPhase += 0.3;
 
-                if (Math.random() > 0.3) {
+                if (!this.finished && Math.random() > 0.3) {
                     this.particles.push({
                         x: this.x - 16,
                         y: this.y + 6 + (Math.random() * 4 - 2),
@@ -650,9 +654,9 @@
                 }
 
                 const finishX = trackLength - 100;
+                // Khi chạm vạch đích: ghi nhận thứ hạng và thời gian về đích
                 if (this.x >= finishX && !this.finished) {
                     this.finished = true;
-                    this.x = finishX;
                     this.finishTime = ((performance.now() - raceStartTime) / 1000).toFixed(2);
                     finishedDucks.push(this);
                     this.rank = finishedDucks.length;
@@ -662,9 +666,28 @@
                         confetti({ particleCount: 200, spread: 120, origin: { y: 0.5 } });
                     }
                 }
+
+                // Vịt tiếp tục chạy qua hẳn vạch đích và mờ dần biến mất luôn
+                if (this.finished) {
+                    const distancePastFinish = this.x - finishX;
+                    const fadeDistance = 60; // Chạy lướt qua hẳn vạch đích rồi biến mất hoàn toàn
+                    this.opacity = Math.max(0, 1 - (distancePastFinish / fadeDistance));
+                    if (distancePastFinish >= fadeDistance || this.opacity <= 0) {
+                        this.opacity = 0;
+                        this.disappeared = true;
+                    }
+                }
             }
 
             draw(ctx) {
+                // Nếu đã về đích và biến mất thì không vẽ nữa
+                if (this.disappeared) return;
+
+                ctx.save();
+                if (this.opacity !== undefined && this.opacity < 1) {
+                    ctx.globalAlpha = Math.max(0, this.opacity);
+                }
+
                 this.particles.forEach(p => {
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
@@ -787,6 +810,8 @@
                 }
 
                 ctx.restore();
+
+                ctx.restore();
             }
         }
 
@@ -859,8 +884,23 @@
 
         function load39Ducks() {
             const input = document.getElementById('duckNamesInput');
-            input.value = DEFAULT_DUCK_NAMES.join('\n');
+            // Sắp xếp mặc định theo tên (chữ cuối) A→Z trước khi nạp
+            const sorted = [...DEFAULT_DUCK_NAMES].sort((a, b) => {
+                const nameA = getFirstName(a);
+                const nameB = getFirstName(b);
+                return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+            });
+            input.value = sorted.join('\n');
             updateDuckListFromInput();
+        }
+
+        /**
+         * Lấy tên riêng (từ cuối cùng trong họ tên đầy đủ)
+         * VD: "Nguyễn Thanh Hiếu" → "Hiếu"
+         */
+        function getFirstName(fullName) {
+            const parts = fullName.trim().split(/\s+/);
+            return parts[parts.length - 1];
         }
 
         function updateDuckListFromInput() {
@@ -868,6 +908,16 @@
             let lines = input.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             
             if (lines.length > 39) lines = lines.slice(0, 39);
+
+            // Tự động sắp xếp theo tên (chữ cuối) A→Z theo tiếng Việt
+            lines.sort((a, b) => {
+                const nameA = getFirstName(a);
+                const nameB = getFirstName(b);
+                return nameA.localeCompare(nameB, 'vi', { sensitivity: 'base' });
+            });
+
+            // Cập nhật lại textarea để phản ánh thứ tự đã sắp xếp
+            input.value = lines.join('\n');
 
             if (raceState === 'IDLE') {
                 allDucks = lines.map((name, idx) => {
@@ -877,7 +927,7 @@
                 });
 
                 allDucks.forEach(duck => {
-                    const found = eliminatedWinners.find(w => w.number === duck.number);
+                    const found = eliminatedWinners.find(w => w.name === duck.name);
                     if (found) duck.isEliminated = true;
                 });
 
@@ -977,7 +1027,11 @@
                 });
 
                 if (currentLeader) {
-                    document.getElementById('leaderName').innerText = `${currentLeader.name} (Số ${currentLeader.number})`;
+                    if (finishedDucks.length > 0) {
+                        document.getElementById('leaderName').innerText = `🏆 Top 1: ${finishedDucks[0].name} (Số ${finishedDucks[0].number})`;
+                    } else {
+                        document.getElementById('leaderName').innerText = `${currentLeader.name} (Số ${currentLeader.number})`;
+                    }
                 }
 
                 // Camera Switching in final stretch
@@ -985,11 +1039,11 @@
                 if (isFinalStretch) {
                     targetCameraZoom = isSlowMoFinish ? 2.2 : 1.85;
 
-                    if (focusSwitchTimer <= 0 || !focusDuck || focusDuck.finished) {
+                    if (focusSwitchTimer <= 0 || !focusDuck || focusDuck.finished || focusDuck.disappeared) {
                         focusSwitchTimer = 0.9 + Math.random() * 0.6;
                         
-                        // Switch between boosting ducks in top group
-                        const boostingDucks = leadingGroup.filter(d => d.isBoosting);
+                        // Switch between boosting ducks in top group that haven't finished yet
+                        const boostingDucks = leadingGroup.filter(d => d.isBoosting && !d.finished);
                         if (boostingDucks.length > 0 && Math.random() > 0.4) {
                             focusDuck = boostingDucks[Math.floor(Math.random() * boostingDucks.length)];
                         } else {
@@ -1001,9 +1055,13 @@
                     focusDuck = currentLeader;
                 }
 
-                if (focusDuck) {
-                    const focusX = focusDuck.x;
-                    const focusY = focusDuck.y;
+                const targetFocus = (focusDuck && !focusDuck.disappeared)
+                    ? focusDuck
+                    : (remainingLeader || currentLeader || { x: trackTotalWidth - 100, y: canvas.height / 2 });
+
+                if (targetFocus) {
+                    const focusX = targetFocus.x;
+                    const focusY = targetFocus.y;
 
                     targetCameraX = focusX - (canvas.width / targetCameraZoom) * 0.5;
                     targetCameraY = focusY - (canvas.height / targetCameraZoom) * 0.5;
